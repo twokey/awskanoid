@@ -2,6 +2,7 @@ import pygame
 from typing import List, Tuple, Optional
 from utils.constants import *
 from utils.score import ScoreManager
+from utils.settings import SettingsManager
 
 class Button:
     def __init__(self, x: int, y: int, width: int, height: int, text: str, font):
@@ -49,7 +50,7 @@ class MainMenu:
         self.buttons = [
             Button(center_x, start_y, button_width, button_height, "Start Game", self.font_medium),
             Button(center_x, start_y + button_spacing, button_width, button_height, "High Scores", self.font_medium),
-            Button(center_x, start_y + button_spacing * 2, button_width, button_height, "Controls", self.font_medium),
+            Button(center_x, start_y + button_spacing * 2, button_width, button_height, "Settings", self.font_medium),
             Button(center_x, start_y + button_spacing * 3, button_width, button_height, "Quit", self.font_medium)
         ]
     
@@ -63,7 +64,7 @@ class MainMenu:
                 elif i == 1:
                     return "high_scores"
                 elif i == 2:
-                    return "controls"
+                    return "settings"
                 elif i == 3:
                     return "quit"
         return None
@@ -276,3 +277,184 @@ class NameEntryMenu:
         instruction_rect = instruction_surface.get_rect()
         instruction_rect.center = (SCREEN_WIDTH // 2, 450)
         screen.blit(instruction_surface, instruction_rect)
+
+class ControlSettingsMenu:
+    def __init__(self, settings_manager: SettingsManager):
+        pygame.font.init()
+        self.font_large = pygame.font.Font(None, FONT_SIZE_LARGE)
+        self.font_medium = pygame.font.Font(None, FONT_SIZE_MEDIUM)
+        self.font_small = pygame.font.Font(None, FONT_SIZE_SMALL)
+        self.settings_manager = settings_manager
+        
+        # Create buttons
+        button_width = 200
+        button_height = 50
+        button_spacing = 80
+        start_y = SCREEN_HEIGHT // 2 - 50
+        center_x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        self.keyboard_button = Button(center_x, start_y, button_width, button_height, "Keyboard", self.font_medium)
+        self.mouse_button = Button(center_x, start_y + button_spacing, button_width, button_height, "Mouse", self.font_medium)
+        self.back_button = Button(50, SCREEN_HEIGHT - 100, 100, 40, "Back", self.font_small)
+    
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
+        """Update control settings menu"""
+        self.keyboard_button.update(mouse_pos, mouse_clicked)
+        self.mouse_button.update(mouse_pos, mouse_clicked)
+        self.back_button.update(mouse_pos, mouse_clicked)
+        
+        if self.keyboard_button.clicked:
+            self.settings_manager.set_control_mode(CONTROL_MODE_KEYBOARD)
+        elif self.mouse_button.clicked:
+            self.settings_manager.set_control_mode(CONTROL_MODE_MOUSE)
+        elif self.back_button.clicked:
+            return "main_menu"
+        
+        return None
+    
+    def draw(self, screen):
+        """Draw the control settings menu"""
+        screen.fill(MENU_BG)
+        
+        # Title
+        title_text = "CONTROL SETTINGS"
+        title_surface = self.font_large.render(title_text, True, WHITE)
+        title_rect = title_surface.get_rect()
+        title_rect.center = (SCREEN_WIDTH // 2, 150)
+        screen.blit(title_surface, title_rect)
+        
+        # Instructions
+        instruction_text = "Choose your preferred control method:"
+        instruction_surface = self.font_medium.render(instruction_text, True, LIGHT_GRAY)
+        instruction_rect = instruction_surface.get_rect()
+        instruction_rect.center = (SCREEN_WIDTH // 2, 220)
+        screen.blit(instruction_surface, instruction_rect)
+        
+        # Current selection indicator
+        current_mode = self.settings_manager.get_control_mode()
+        
+        # Draw buttons with selection indicator
+        self.draw_control_button(screen, self.keyboard_button, current_mode == CONTROL_MODE_KEYBOARD)
+        self.draw_control_button(screen, self.mouse_button, current_mode == CONTROL_MODE_MOUSE)
+        
+        # Control descriptions
+        descriptions = {
+            CONTROL_MODE_KEYBOARD: [
+                "• Use LEFT and RIGHT arrow keys to move paddle",
+                "• Precise digital control",
+                "• Good for consistent movement",
+                "• Mouse input disabled during gameplay"
+            ],
+            CONTROL_MODE_MOUSE: [
+                "• Move mouse to control paddle position", 
+                "• Smooth analog control",
+                "• Natural and intuitive",
+                "• Arrow keys disabled during gameplay",
+                "• ESC key always works for pause"
+            ]
+        }
+        
+        # Show description for current mode
+        desc_y = 450
+        mode_descriptions = descriptions.get(current_mode, [])
+        for i, desc in enumerate(mode_descriptions):
+            color = WHITE if not desc.startswith("•") else LIGHT_GRAY
+            desc_surface = self.font_small.render(desc, True, color)
+            desc_rect = desc_surface.get_rect()
+            desc_rect.centerx = SCREEN_WIDTH // 2
+            desc_rect.y = desc_y + i * 25
+            screen.blit(desc_surface, desc_rect)
+        
+        # Back button
+        self.back_button.draw(screen)
+    
+    def draw_control_button(self, screen, button: Button, is_selected: bool):
+        """Draw a control button with selection indicator"""
+        # Choose colors based on selection and hover state
+        if is_selected:
+            bg_color = (100, 150, 100) if not button.hovered else (120, 170, 120)
+            border_color = (0, 255, 0)
+            border_width = 3
+        else:
+            bg_color = MENU_BUTTON_HOVER if button.hovered else MENU_BUTTON
+            border_color = WHITE
+            border_width = 2
+        
+        # Draw button background
+        pygame.draw.rect(screen, bg_color, button.rect)
+        pygame.draw.rect(screen, border_color, button.rect, border_width)
+        
+        # Draw button text
+        text_color = WHITE
+        text_surface = button.font.render(button.text, True, text_color)
+        text_rect = text_surface.get_rect()
+        text_rect.center = button.rect.center
+        screen.blit(text_surface, text_rect)
+        
+        # Draw selection indicator
+        if is_selected:
+            indicator_text = "✓ SELECTED"
+            indicator_surface = self.font_small.render(indicator_text, True, (0, 255, 0))
+            indicator_rect = indicator_surface.get_rect()
+            indicator_rect.centerx = button.rect.centerx
+            indicator_rect.y = button.rect.bottom + 10
+            screen.blit(indicator_surface, indicator_rect)
+
+class SettingsMenu:
+    def __init__(self, settings_manager: SettingsManager):
+        pygame.font.init()
+        self.font_large = pygame.font.Font(None, FONT_SIZE_LARGE)
+        self.font_medium = pygame.font.Font(None, FONT_SIZE_MEDIUM)
+        self.font_small = pygame.font.Font(None, FONT_SIZE_SMALL)
+        self.settings_manager = settings_manager
+        
+        # Create buttons
+        button_width = 200
+        button_height = 50
+        button_spacing = 70
+        start_y = SCREEN_HEIGHT // 2 - 50
+        center_x = SCREEN_WIDTH // 2 - button_width // 2
+        
+        self.controls_button = Button(center_x, start_y, button_width, button_height, "Controls", self.font_medium)
+        self.help_button = Button(center_x, start_y + button_spacing, button_width, button_height, "Help", self.font_medium)
+        self.back_button = Button(50, SCREEN_HEIGHT - 100, 100, 40, "Back", self.font_small)
+    
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
+        """Update settings menu"""
+        self.controls_button.update(mouse_pos, mouse_clicked)
+        self.help_button.update(mouse_pos, mouse_clicked)
+        self.back_button.update(mouse_pos, mouse_clicked)
+        
+        if self.controls_button.clicked:
+            return "control_settings"
+        elif self.help_button.clicked:
+            return "help"
+        elif self.back_button.clicked:
+            return "main_menu"
+        
+        return None
+    
+    def draw(self, screen):
+        """Draw the settings menu"""
+        screen.fill(MENU_BG)
+        
+        # Title
+        title_text = "SETTINGS"
+        title_surface = self.font_large.render(title_text, True, WHITE)
+        title_rect = title_surface.get_rect()
+        title_rect.center = (SCREEN_WIDTH // 2, 150)
+        screen.blit(title_surface, title_rect)
+        
+        # Current control mode display
+        current_mode = self.settings_manager.get_control_mode()
+        mode_display = current_mode.title()
+        mode_text = f"Current Control Mode: {mode_display}"
+        mode_surface = self.font_small.render(mode_text, True, LIGHT_GRAY)
+        mode_rect = mode_surface.get_rect()
+        mode_rect.center = (SCREEN_WIDTH // 2, 220)
+        screen.blit(mode_surface, mode_rect)
+        
+        # Draw buttons
+        self.controls_button.draw(screen)
+        self.help_button.draw(screen)
+        self.back_button.draw(screen)

@@ -6,12 +6,13 @@ from enum import Enum
 from utils.constants import *
 from utils.sounds import SoundManager
 from utils.score import ScoreManager, GameScore
+from utils.settings import SettingsManager
 from game.entities import Ball, Paddle, Brick
 from game.powerups import PowerUpManager
 from game.collision import CollisionDetector
 from game.levels import LevelManager
 from ui.hud import HUD
-from ui.menu import MainMenu, HighScoreMenu, NameEntryMenu
+from ui.menu import MainMenu, HighScoreMenu, NameEntryMenu, SettingsMenu, ControlSettingsMenu
 
 class GameState(Enum):
     MAIN_MENU = "main_menu"
@@ -21,6 +22,8 @@ class GameState(Enum):
     GAME_OVER = "game_over"
     HIGH_SCORES = "high_scores"
     CONTROLS = "controls"
+    SETTINGS = "settings"
+    CONTROL_SETTINGS = "control_settings"
     NAME_ENTRY = "name_entry"
 
 class GameStateManager:
@@ -28,6 +31,7 @@ class GameStateManager:
         # Initialize managers
         self.sound_manager = SoundManager()
         self.score_manager = ScoreManager()
+        self.settings_manager = SettingsManager()
         self.level_manager = LevelManager()
         self.powerup_manager = PowerUpManager()
         self.collision_detector = CollisionDetector()
@@ -36,6 +40,8 @@ class GameStateManager:
         # Initialize UI
         self.main_menu = MainMenu()
         self.high_score_menu = HighScoreMenu(self.score_manager)
+        self.settings_menu = SettingsMenu(self.settings_manager)
+        self.control_settings_menu = ControlSettingsMenu(self.settings_manager)
         self.name_entry_menu = None
         
         # Game state
@@ -94,9 +100,8 @@ class GameStateManager:
                 self.reset_game()
             elif action == "high_scores":
                 self.current_state = GameState.HIGH_SCORES
-            elif action == "controls":
-                self.show_controls = True
-                self.current_state = GameState.CONTROLS
+            elif action == "settings":
+                self.current_state = GameState.SETTINGS
             elif action == "quit":
                 return "quit"
         
@@ -105,12 +110,27 @@ class GameStateManager:
             if action == "main_menu":
                 self.current_state = GameState.MAIN_MENU
         
+        elif self.current_state == GameState.SETTINGS:
+            action = self.settings_menu.update(mouse_pos, mouse_clicked)
+            if action == "main_menu":
+                self.current_state = GameState.MAIN_MENU
+            elif action == "control_settings":
+                self.current_state = GameState.CONTROL_SETTINGS
+            elif action == "help":
+                self.show_controls = True
+                self.current_state = GameState.CONTROLS
+        
+        elif self.current_state == GameState.CONTROL_SETTINGS:
+            action = self.control_settings_menu.update(mouse_pos, mouse_clicked)
+            if action == "main_menu":
+                self.current_state = GameState.MAIN_MENU
+        
         elif self.current_state == GameState.CONTROLS:
             # Any key returns to main menu
             for event in events:
                 if event.type == pygame.KEYDOWN:
                     self.show_controls = False
-                    self.current_state = GameState.MAIN_MENU
+                    self.current_state = GameState.SETTINGS
         
         elif self.current_state == GameState.PLAYING:
             for event in events:
@@ -177,7 +197,9 @@ class GameStateManager:
     def update_gameplay(self, dt: float, keys, mouse_pos):
         """Update gameplay logic"""
         # Update paddle
-        self.paddle.update(dt, keys, mouse_pos)
+        control_mode = self.settings_manager.get_control_mode()
+        mouse_pos_for_paddle = mouse_pos if control_mode == "mouse" else None
+        self.paddle.update(dt, keys, mouse_pos_for_paddle, control_mode)
         
         # Update power-ups
         old_falling_count = len(self.powerup_manager.falling_powerups)
@@ -321,6 +343,12 @@ class GameStateManager:
         
         elif self.current_state == GameState.HIGH_SCORES:
             self.high_score_menu.draw(screen)
+        
+        elif self.current_state == GameState.SETTINGS:
+            self.settings_menu.draw(screen)
+        
+        elif self.current_state == GameState.CONTROL_SETTINGS:
+            self.control_settings_menu.draw(screen)
         
         elif self.current_state == GameState.CONTROLS:
             screen.fill(BACKGROUND)

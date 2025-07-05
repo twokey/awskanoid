@@ -98,18 +98,19 @@ class Paddle:
         self.is_sticky = False
         self.lasers = []
     
-    def update(self, dt: float, keys, mouse_pos=None):
-        """Update paddle position based on input"""
+    def update(self, dt: float, keys, mouse_pos=None, control_mode="keyboard"):
+        """Update paddle position based on input and control mode"""
         old_x = self.x
         
-        # Keyboard controls
-        if keys[pygame.K_LEFT]:
-            self.x -= self.speed * dt * 60
-        if keys[pygame.K_RIGHT]:
-            self.x += self.speed * dt * 60
+        if control_mode == "keyboard":
+            # Keyboard controls only
+            if keys[pygame.K_LEFT]:
+                self.x -= self.speed * dt * 60
+            if keys[pygame.K_RIGHT]:
+                self.x += self.speed * dt * 60
         
-        # Mouse controls (if mouse position provided)
-        if mouse_pos:
+        elif control_mode == "mouse" and mouse_pos:
+            # Mouse controls only
             target_x = mouse_pos[0] - self.width // 2
             # Smooth mouse movement
             diff = target_x - self.x

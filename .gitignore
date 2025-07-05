@@ -101,6 +101,7 @@ dmypy.json
 
 # Game specific
 high_scores.json
+game_settings.json
 *.log
 
 # macOS
