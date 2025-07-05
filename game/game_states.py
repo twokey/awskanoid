@@ -94,7 +94,7 @@ class GameStateManager:
     def handle_events(self, events: List[pygame.event.Event], keys, mouse_pos, mouse_clicked):
         """Handle events based on current state"""
         if self.current_state == GameState.MAIN_MENU:
-            action = self.main_menu.update(mouse_pos, mouse_clicked)
+            action = self.main_menu.update(mouse_pos, mouse_clicked, events)
             if action == "start_game":
                 self.current_state = GameState.PLAYING
                 self.reset_game()
@@ -106,12 +106,12 @@ class GameStateManager:
                 return "quit"
         
         elif self.current_state == GameState.HIGH_SCORES:
-            action = self.high_score_menu.update(mouse_pos, mouse_clicked)
+            action = self.high_score_menu.update(mouse_pos, mouse_clicked, events)
             if action == "main_menu":
                 self.current_state = GameState.MAIN_MENU
         
         elif self.current_state == GameState.SETTINGS:
-            action = self.settings_menu.update(mouse_pos, mouse_clicked)
+            action = self.settings_menu.update(mouse_pos, mouse_clicked, events)
             if action == "main_menu":
                 self.current_state = GameState.MAIN_MENU
             elif action == "control_settings":
@@ -121,7 +121,7 @@ class GameStateManager:
                 self.current_state = GameState.CONTROLS
         
         elif self.current_state == GameState.CONTROL_SETTINGS:
-            action = self.control_settings_menu.update(mouse_pos, mouse_clicked)
+            action = self.control_settings_menu.update(mouse_pos, mouse_clicked, events)
             if action == "main_menu":
                 self.current_state = GameState.MAIN_MENU
         

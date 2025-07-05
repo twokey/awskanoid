@@ -11,21 +11,41 @@ class Button:
         self.font = font
         self.hovered = False
         self.clicked = False
+        self.selected = False  # For keyboard navigation
     
     def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool):
         """Update button state based on mouse input"""
         self.hovered = self.rect.collidepoint(mouse_pos)
         self.clicked = self.hovered and mouse_clicked
     
+    def set_selected(self, selected: bool):
+        """Set keyboard selection state"""
+        self.selected = selected
+    
     def draw(self, screen):
         """Draw the button"""
         # Choose colors based on state
-        bg_color = MENU_BUTTON_HOVER if self.hovered else MENU_BUTTON
+        if self.selected:
+            # Keyboard selected - use a distinct color
+            bg_color = (120, 120, 180)
+            border_color = (255, 255, 0)  # Yellow border for keyboard selection
+            border_width = 3
+        elif self.hovered:
+            # Mouse hovered
+            bg_color = MENU_BUTTON_HOVER
+            border_color = WHITE
+            border_width = 2
+        else:
+            # Default state
+            bg_color = MENU_BUTTON
+            border_color = WHITE
+            border_width = 2
+        
         text_color = WHITE
         
         # Draw button background
         pygame.draw.rect(screen, bg_color, self.rect)
-        pygame.draw.rect(screen, WHITE, self.rect, 2)
+        pygame.draw.rect(screen, border_color, self.rect, border_width)
         
         # Draw button text
         text_surface = self.font.render(self.text, True, text_color)
@@ -53,9 +73,46 @@ class MainMenu:
             Button(center_x, start_y + button_spacing * 2, button_width, button_height, "Settings", self.font_medium),
             Button(center_x, start_y + button_spacing * 3, button_width, button_height, "Quit", self.font_medium)
         ]
+        
+        # Keyboard navigation
+        self.selected_index = 0
+        self.update_selection()
     
-    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
-        """Update menu and return action if button clicked"""
+    def update_selection(self):
+        """Update which button is selected for keyboard navigation"""
+        for i, button in enumerate(self.buttons):
+            button.set_selected(i == self.selected_index)
+    
+    def handle_keyboard_input(self, events) -> Optional[str]:
+        """Handle keyboard navigation"""
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    self.selected_index = (self.selected_index - 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_DOWN:
+                    self.selected_index = (self.selected_index + 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    # Activate selected button
+                    if self.selected_index == 0:
+                        return "start_game"
+                    elif self.selected_index == 1:
+                        return "high_scores"
+                    elif self.selected_index == 2:
+                        return "settings"
+                    elif self.selected_index == 3:
+                        return "quit"
+        return None
+    
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool, events) -> Optional[str]:
+        """Update menu and return action if button clicked or keyboard activated"""
+        # Handle keyboard input first
+        keyboard_action = self.handle_keyboard_input(events)
+        if keyboard_action:
+            return keyboard_action
+        
+        # Handle mouse input
         for i, button in enumerate(self.buttons):
             button.update(mouse_pos, mouse_clicked)
             if button.clicked:
@@ -67,6 +124,12 @@ class MainMenu:
                     return "settings"
                 elif i == 3:
                     return "quit"
+            
+            # Update keyboard selection based on mouse hover
+            if button.hovered:
+                self.selected_index = i
+                self.update_selection()
+        
         return None
     
     def draw(self, screen):
@@ -102,9 +165,17 @@ class MainMenu:
             button.draw(screen)
         
         # Draw version info
-        version_text = "v1.0 - Built with Pygame"
+        version_text = "v1.0"
         version_surface = self.font_small.render(version_text, True, GRAY)
         screen.blit(version_surface, (10, SCREEN_HEIGHT - 30))
+        
+        # Draw keyboard navigation hint
+        nav_hint = "Use ↑↓ arrows and ENTER, or mouse"
+        nav_surface = self.font_small.render(nav_hint, True, GRAY)
+        nav_rect = nav_surface.get_rect()
+        nav_rect.right = SCREEN_WIDTH - 10
+        nav_rect.bottom = SCREEN_HEIGHT - 10
+        screen.blit(nav_surface, nav_rect)
 
 class HighScoreMenu:
     def __init__(self, score_manager: ScoreManager):
@@ -117,8 +188,15 @@ class HighScoreMenu:
         # Back button
         self.back_button = Button(50, SCREEN_HEIGHT - 100, 100, 40, "Back", self.font_small)
     
-    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool, events) -> Optional[str]:
         """Update high score menu"""
+        # Handle keyboard input
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    return "main_menu"
+        
+        # Handle mouse input
         self.back_button.update(mouse_pos, mouse_clicked)
         if self.back_button.clicked:
             return "main_menu"
@@ -296,9 +374,47 @@ class ControlSettingsMenu:
         self.keyboard_button = Button(center_x, start_y, button_width, button_height, "Keyboard", self.font_medium)
         self.mouse_button = Button(center_x, start_y + button_spacing, button_width, button_height, "Mouse", self.font_medium)
         self.back_button = Button(50, SCREEN_HEIGHT - 100, 100, 40, "Back", self.font_small)
+        
+        self.buttons = [self.keyboard_button, self.mouse_button, self.back_button]
+        
+        # Keyboard navigation
+        self.selected_index = 0
+        self.update_selection()
     
-    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
+    def update_selection(self):
+        """Update which button is selected for keyboard navigation"""
+        for i, button in enumerate(self.buttons):
+            button.set_selected(i == self.selected_index)
+    
+    def handle_keyboard_input(self, events) -> Optional[str]:
+        """Handle keyboard navigation"""
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    self.selected_index = (self.selected_index - 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_DOWN:
+                    self.selected_index = (self.selected_index + 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    if self.selected_index == 0:
+                        self.settings_manager.set_control_mode(CONTROL_MODE_KEYBOARD)
+                    elif self.selected_index == 1:
+                        self.settings_manager.set_control_mode(CONTROL_MODE_MOUSE)
+                    elif self.selected_index == 2:
+                        return "main_menu"
+                elif event.key == pygame.K_ESCAPE:
+                    return "main_menu"
+        return None
+    
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool, events) -> Optional[str]:
         """Update control settings menu"""
+        # Handle keyboard input first
+        keyboard_action = self.handle_keyboard_input(events)
+        if keyboard_action:
+            return keyboard_action
+        
+        # Handle mouse input
         self.keyboard_button.update(mouse_pos, mouse_clicked)
         self.mouse_button.update(mouse_pos, mouse_clicked)
         self.back_button.update(mouse_pos, mouse_clicked)
@@ -309,6 +425,12 @@ class ControlSettingsMenu:
             self.settings_manager.set_control_mode(CONTROL_MODE_MOUSE)
         elif self.back_button.clicked:
             return "main_menu"
+        
+        # Update keyboard selection based on mouse hover
+        for i, button in enumerate(self.buttons):
+            if button.hovered:
+                self.selected_index = i
+                self.update_selection()
         
         return None
     
@@ -418,9 +540,47 @@ class SettingsMenu:
         self.controls_button = Button(center_x, start_y, button_width, button_height, "Controls", self.font_medium)
         self.help_button = Button(center_x, start_y + button_spacing, button_width, button_height, "Help", self.font_medium)
         self.back_button = Button(50, SCREEN_HEIGHT - 100, 100, 40, "Back", self.font_small)
+        
+        self.buttons = [self.controls_button, self.help_button, self.back_button]
+        
+        # Keyboard navigation
+        self.selected_index = 0
+        self.update_selection()
     
-    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool) -> Optional[str]:
+    def update_selection(self):
+        """Update which button is selected for keyboard navigation"""
+        for i, button in enumerate(self.buttons):
+            button.set_selected(i == self.selected_index)
+    
+    def handle_keyboard_input(self, events) -> Optional[str]:
+        """Handle keyboard navigation"""
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    self.selected_index = (self.selected_index - 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_DOWN:
+                    self.selected_index = (self.selected_index + 1) % len(self.buttons)
+                    self.update_selection()
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    if self.selected_index == 0:
+                        return "control_settings"
+                    elif self.selected_index == 1:
+                        return "help"
+                    elif self.selected_index == 2:
+                        return "main_menu"
+                elif event.key == pygame.K_ESCAPE:
+                    return "main_menu"
+        return None
+    
+    def update(self, mouse_pos: Tuple[int, int], mouse_clicked: bool, events) -> Optional[str]:
         """Update settings menu"""
+        # Handle keyboard input first
+        keyboard_action = self.handle_keyboard_input(events)
+        if keyboard_action:
+            return keyboard_action
+        
+        # Handle mouse input
         self.controls_button.update(mouse_pos, mouse_clicked)
         self.help_button.update(mouse_pos, mouse_clicked)
         self.back_button.update(mouse_pos, mouse_clicked)
@@ -431,6 +591,12 @@ class SettingsMenu:
             return "help"
         elif self.back_button.clicked:
             return "main_menu"
+        
+        # Update keyboard selection based on mouse hover
+        for i, button in enumerate(self.buttons):
+            if button.hovered:
+                self.selected_index = i
+                self.update_selection()
         
         return None
     
